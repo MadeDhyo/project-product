@@ -59,6 +59,10 @@ public class ProductController {
         return new ResponseEntity<>(saved, HttpStatus.CREATED);
     }
 
+    @Operation(
+        summary = "Upload Bulk Products",
+        description = "API for uploading bulk products"
+    )
     @PostMapping("/bulk")
     public ResponseEntity<List<Item>> createBulkItems(@RequestBody List<Item> newItems) {
         List<Item> savedItems = itemRepository.saveAll(newItems);
