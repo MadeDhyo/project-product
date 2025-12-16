@@ -88,5 +88,11 @@ public class ProductController {
             return new ResponseEntity<>(item, HttpStatus.OK);
         }).orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
+
+    @DeleteMapping("/bulk")
+    public ResponseEntity<List<String>> deleteBulkItems(@RequestBody List<String> ids) {
+        itemRepository.deleteAllById(ids);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
 }
 
