@@ -3,7 +3,6 @@ package project_testing.demo.controller;
 import java.util.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
 import org.springframework.data.domain.*;
 
 import project_testing.demo.model.*;
@@ -22,28 +21,32 @@ public class ProductController {
         this.itemRepository = itemRepository;
     }
 
-    @Operation(
-        summary = "Get all products",
-        description = "Fetch all data products"
-    )
+    @Operation(summary = "Get all products", description = "Fetch all products with pagination")
     @GetMapping
     public ItemListResponse readAllItems(
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "3") int size
+        @RequestParam(defaultValue = "10") int size
     ) {
-
         Pageable pageable = PageRequest.of(page, size);
         Page<Item> pageResult = itemRepository.findAll(pageable);
-
         return new ItemListResponse((int) pageResult.getTotalElements(), pageResult.getContent());
     }
 
-    @GetMapping(params = "category")
-    public ItemListResponse readItemsByCategory(@RequestParam String category) {
-
-        List<Item> filtered = itemRepository.findByCategoriesContainingIgnoreCase(category);
-
-        return new ItemListResponse(filtered.size(), filtered);
+    @Operation(summary = "Filter products", description = "Filter items by brand name or category")
+    @GetMapping("/filter")
+    public ItemListResponse filterItems(
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String brand
+    ) {
+        List<Item> results;
+        if (brand != null && !brand.isEmpty()) {
+            results = itemRepository.findByBrandNameIgnoreCase(brand);
+        } else if (category != null && !category.isEmpty()) {
+            results = itemRepository.findByCategoriesContainingIgnoreCase(category);
+        } else {
+            results = itemRepository.findAll();
+        }
+        return new ItemListResponse(results.size(), results);
     }
 
     @GetMapping("/{id}")
@@ -59,10 +62,7 @@ public class ProductController {
         return new ResponseEntity<>(saved, HttpStatus.CREATED);
     }
 
-    @Operation(
-        summary = "Upload Bulk Products",
-        description = "API for uploading bulk products"
-    )
+    @Operation(summary = "Upload Bulk Products", description = "API for uploading multiple products at once")
     @PostMapping("/bulk")
     public ResponseEntity<List<Item>> createBulkItems(@RequestBody List<Item> newItems) {
         List<Item> savedItems = itemRepository.saveAll(newItems);
@@ -70,13 +70,15 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Item> updateItem(
-        @PathVariable String id,
-        @RequestBody Item updatedItem
-    ) {
-        return itemRepository.findById(id).map(existing -> {
-            updatedItem.setId(id);
-            Item saved = itemRepository.save(updatedItem);
+    public ResponseEntity<Item> updateItemName(@PathVariable String id, @RequestBody Map<String, String> updates) {
+        return itemRepository.findById(id).map(existingItem -> {
+            // Extract "name" from the request body
+            if (updates.containsKey("name")) {
+                existingItem.setName(updates.get("name"));
+            }
+            
+            // Save the updated entity back to the database
+            Item saved = itemRepository.save(existingItem);
             return new ResponseEntity<>(saved, HttpStatus.OK);
         }).orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
@@ -90,9 +92,8 @@ public class ProductController {
     }
 
     @DeleteMapping("/bulk")
-    public ResponseEntity<List<String>> deleteBulkItems(@RequestBody List<String> ids) {
+    public ResponseEntity<Void> deleteBulkItems(@RequestBody List<String> ids) {
         itemRepository.deleteAllById(ids);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
-
